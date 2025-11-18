@@ -1,0 +1,13 @@
+{
+  "name": "audio-tiktok-web3",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel run dev",
+    "build": "pnpm --filter client build",
+    "install:all": "pnpm --filter . install"
+  },
+  "devDependencies": {
+    "pnpm": "^9.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

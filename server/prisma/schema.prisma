@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  walletAddress String    @unique
+  username      String?
+  isAdmin       Boolean   @default(false)
+  favorites     String[]  @db.ObjectId
+  history       String[]  @db.ObjectId
+  createdAt     DateTime  @default(now())
+  comments      Comment[]
+
+  @@map("users")
+}
+
+model Audio {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  url            String
+  style          String
+  language       String    @default("en")
+  transcript     String
+  favoriteCount  Int       @default(0)
+  shareCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  comments       Comment[]
+
+  @@map("audios")
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  audioId   String   @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+  audio     Audio    @relation(fields: [audioId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("comments")
+}
