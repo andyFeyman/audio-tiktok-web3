@@ -1,10 +1,25 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/client"
 }
 
 datasource db {
   provider = "mongodb"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")  // 保留这行,不然一旦修改后执行npx prisma generate会报错.
+}
+
+// 1. 定义风格枚举
+enum AudioStyle {
+  wealth
+  health
+  peace
+}
+
+// 2. 定义语言枚举
+enum Language {
+  en
+  zh
+  es
 }
 
 model User {
@@ -23,15 +38,25 @@ model User {
 model Audio {
   id             String    @id @default(auto()) @map("_id") @db.ObjectId
   url            String
-  style          String
-  language       String    @default("en")
+  style          AudioStyle
+  language       Language  @default(en)
   transcript     String
+
   favoriteCount  Int       @default(0)
   shareCount     Int       @default(0)
   createdAt      DateTime  @default(now())
+  
+  // Performance & Grouping
+  randomId       Float     @default(0) 
+  setName        String?
+
   comments       Comment[]
 
   @@map("audios")
+  // Indexes for high-performance random sampling
+  @@index([randomId])
+  @@index([language, randomId])
+  @@index([language, style, randomId])
 }
 
 model Comment {

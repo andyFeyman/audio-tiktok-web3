@@ -17,6 +17,20 @@ export const authMiddleware = async (req, res, next) => {
   }
 };
 
+export const optionalAuth = async (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    if (user) req.user = { ...user, token: decoded };
+    next();
+  } catch (err) {
+    next(); // Ignore invalid tokens
+  }
+};
+
 export const adminMiddleware = (req, res, next) => {
   if (!req.user?.isAdmin) return res.status(403).json({ error: 'Admin access required' });
   next();

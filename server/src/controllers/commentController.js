@@ -1,17 +1,40 @@
+import xss from 'xss';
 import { prisma } from '../prisma.js';
 
+
 export const addComment = async (req, res) => {
-  const { audioId, content } = req.body;
-  const userId = req.user.id;
+  try {
 
-  if (!content.trim()) return res.status(400).json({ error: 'Comment cannot be empty' });
+    const { audioId, content } = req.body;
+    // 过滤 HTML 标签，只保留纯文本
+    const sanitizedContent = xss(content, {
+      whiteList: {}, // 不允许任何 HTML 标签
+      stripIgnoreTag: true, // 过滤掉不在白名单里的标签
+    });
 
-  const comment = await prisma.comment.create({
-    data: { audioId, userId, content },
-    include: { user: { select: { username: true } } },
-  });
+    if (sanitizedContent.length > 200) {
+      return res.status(400).json({ error: 'Comment too long' });
+    }
 
-  res.status(201).json(comment);
+    const userId = req.user.id;
+
+    if (!audioId || !content?.trim()) return res.status(400).json({ error: 'Missing audioId or content' });
+
+
+    const comment = await prisma.comment.create({
+      data: {
+        audioId,
+        userId,
+        content: sanitizedContent
+      },
+      include: { user: { select: { username: true } } },
+    });
+
+    res.status(201).json(comment);
+  } catch (error) {
+    console.error("Comment Create Error:", error);
+    res.status(500).json({ error: 'Database error' });
+  }
 };
 
 export const getComments = async (req, res) => {
