@@ -16,8 +16,7 @@ export const login = async (req, res) => {
 
     const fields = await siweMessage.verify({
       signature,
-      domain: 'localhost',
-      // 不传 domain，让它用 message 里的 'localhost'
+      domain: req.get('host'), // Dynamically get domain from request headers
     });
     //console.log("whole fields:", fields);
 
