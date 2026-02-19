@@ -66,6 +66,7 @@ const Feed = ({ language }) => {
   const [showComments, setShowComments] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const audioRef = useRef(null);
 
   // 字幕相关状态
@@ -105,6 +106,7 @@ const Feed = ({ language }) => {
   const nextTrack = useCallback((autoPlay = false) => {
     // Infinite scroll logic: allow moving to next track if available
     if (currentIndex < audios.length - 1) {
+      setIsTransitioning(true);
       shouldAutoPlayRef.current = autoPlay;
       setCurrentIndex(prev => prev + 1);
       if (!autoPlay) {
@@ -112,16 +114,19 @@ const Feed = ({ language }) => {
       }
       setProgress(0);
       setActiveSubIndex(-1);
+      setTimeout(() => setIsTransitioning(false), 500);
     }
   }, [currentIndex, audios.length]);
 
   const prevTrack = useCallback(() => {
     if (currentIndex > 0) {
+      setIsTransitioning(true);
       shouldAutoPlayRef.current = false;
       setCurrentIndex(prev => prev - 1);
       setIsPlaying(false);
       setProgress(0);
       setActiveSubIndex(-1);
+      setTimeout(() => setIsTransitioning(false), 500);
     }
   }, [currentIndex]);
 
@@ -166,8 +171,7 @@ const Feed = ({ language }) => {
   }, [activeSubIndex]);
 
   const swipeHandlers = useSwipeable({
-    onSwipedUp: nextTrack,
-    onSwipedDown: prevTrack,
+    // Removed vertical swipes as requested
     trackMouse: true,
   });
 
@@ -304,6 +308,8 @@ const Feed = ({ language }) => {
           display: flex; align-items: center; justify-content: center;
           box-shadow: 0 20px 60px rgba(0,0,0,0.8);
           transition: all 0.5s ease;
+          opacity: ${isTransitioning ? 0 : 1};
+          transform: ${isTransitioning ? 'scale(0.9) translateY(20px)' : 'scale(1) translateY(0)'};
         }
         .vinyl-simple.loading {
           animation: pulse 2s infinite ease-in-out;
@@ -342,6 +348,10 @@ const Feed = ({ language }) => {
           box-shadow: 0 0 15px rgba(255,255,255,0.3);
           border-color: rgba(255,255,255,0.3);
         }
+        .main-content-wrapper {
+          opacity: ${isTransitioning ? 0 : 1};
+          transition: opacity 0.5s ease;
+        }
       `}</style>
 
       <div style={{
@@ -349,7 +359,7 @@ const Feed = ({ language }) => {
         background: `radial-gradient(circle at center, ${isPlaying ? getGenreColor(currentAudio?.style) : (currentAudio ? '#111' : '#0a0a0a')} 0%, #000 100%)`
       }} />
 
-      <div style={styles.mainContent}>
+      <div style={{ ...styles.mainContent, paddingBottom: isMobile ? '0' : '60px' }}>
         <audio
           ref={audioRef}
           onPlay={() => setIsPlaying(true)}
@@ -366,63 +376,72 @@ const Feed = ({ language }) => {
           }}
         />
 
-        <div style={{ ...styles.diskWrapper, marginBottom: isMobile ? '20px' : '40px' }} onClick={togglePlay}>
-          <div className={`vinyl-simple ${loading ? 'loading' : ''}`}>
-            <div style={{ width: '10px', height: '10px', background: '#000', borderRadius: '50%' }} />
-          </div>
-          {!isPlaying && (
-            <div style={styles.playOverlay}>
-              <div className="play-btn-simple">▶</div>
+        <div className="main-content-wrapper" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+          <div style={{ ...styles.diskWrapper, marginBottom: isMobile ? '20px' : '20px' }} onClick={togglePlay}>
+            <div className={`vinyl-simple ${loading ? 'loading' : ''}`}>
+              <div style={{ width: '10px', height: '10px', background: '#000', borderRadius: '50%' }} />
             </div>
-          )}
-        </div>
+            {!isPlaying && (
+              <div style={styles.playOverlay}>
+                <div className="play-btn-simple">▶</div>
+              </div>
+            )}
+          </div>
 
-        <div style={{ ...styles.textContainer, padding: isMobile ? '0 10px' : '0 20px' }}>
-          <span style={styles.genreTag}>{currentAudio?.style?.toUpperCase() || (loading ? 'LOADING...' : '...')}</span>
-          <div className="lyric-viewport" ref={lyricContainerRef}>
-            <div className="lyric-wrapper">
-              {loading ? (
-                <div className="lyric-line active" style={{ opacity: 0.5 }}>Connecting to AI Feed...</div>
-              ) : subtitles.length > 0 ? (
-                subtitles.map((sub, i) => (
-                  <div
-                    key={i}
-                    ref={i === activeSubIndex ? activeLyricRef : null}
-                    className={`lyric-line ${i === activeSubIndex ? 'active' : ''}`}
-                  >
-                    {sub.text}
-                  </div>
-                ))
-              ) : (
-                <div className="lyric-line active">No lyrics available</div>
-              )}
+          <div style={{ ...styles.textContainer, padding: isMobile ? '0 10px' : '0 20px' }}>
+            <span style={styles.genreTag}>{currentAudio?.style?.toUpperCase() || (loading ? 'LOADING...' : '...')}</span>
+            <div className="lyric-viewport" ref={lyricContainerRef}>
+              <div className="lyric-wrapper">
+                {loading ? (
+                  <div className="lyric-line active" style={{ opacity: 0.5 }}>Connecting to Feed...</div>
+                ) : subtitles.length > 0 ? (
+                  subtitles.map((sub, i) => (
+                    <div
+                      key={i}
+                      ref={i === activeSubIndex ? activeLyricRef : null}
+                      className={`lyric-line ${i === activeSubIndex ? 'active' : ''}`}
+                    >
+                      {sub.text}
+                    </div>
+                  ))
+                ) : (
+                  <div className="lyric-line active">No lyrics available</div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Navigation Buttons */}
-        <div style={{ ...styles.navControls, marginTop: isMobile ? '20px' : '30px', gap: isMobile ? '30px' : '40px' }}>
-          <div
-            className={`nav-btn ${activeBtn === 'prev' ? 'active' : ''}`}
-            onClick={handleNavPrev}
-            style={{ opacity: currentIndex === 0 ? 0.3 : 1, pointerEvents: currentIndex === 0 ? 'none' : 'auto' }}
-          >
-            <span style={{ fontSize: '1rem' }}>⏮</span>
-          </div>
-          <div
-            className={`nav-btn ${activeBtn === 'next' ? 'active' : ''}`}
-            onClick={handleNavNext}
-          >
-            <span style={{ fontSize: '1rem' }}>⏭</span>
+          <div style={{
+            ...styles.navControls,
+            position: isMobile ? 'absolute' : 'relative',
+            bottom: isMobile ? '110px' : 'auto',
+            marginTop: isMobile ? '0' : '20px',
+            gap: isMobile ? '40px' : '40px',
+            width: isMobile ? '100%' : 'auto',
+            zIndex: 30
+          }}>
+            <div
+              className={`nav-btn ${activeBtn === 'prev' ? 'active' : ''}`}
+              onClick={handleNavPrev}
+              style={{ opacity: currentIndex === 0 ? 0.3 : 1, pointerEvents: currentIndex === 0 ? 'none' : 'auto' }}
+            >
+              <span style={{ fontSize: '1rem' }}>⏮</span>
+            </div>
+            <div
+              className={`nav-btn ${activeBtn === 'next' ? 'active' : ''}`}
+              onClick={handleNavNext}
+            >
+              <span style={{ fontSize: '1rem' }}>⏭</span>
+            </div>
           </div>
         </div>
 
         <div style={{
           ...styles.sideBar,
           right: isMobile ? '10px' : '20px',
-          bottom: isMobile ? '120px' : '150px',
+          bottom: isMobile ? '160px' : '150px',
           gap: isMobile ? '20px' : '25px',
-          transform: isMobile ? 'scale(0.9)' : 'scale(1)'
+          transform: isMobile ? 'scale(0.85)' : 'scale(1)'
         }}>
           {currentAudio && <FavoriteButton audio={currentAudio} onShowToast={showToast} />}
           <div style={styles.actionItem} onClick={() => currentAudio && setShowComments(true)}>
@@ -457,10 +476,10 @@ const Feed = ({ language }) => {
 
 // 样式定义
 const styles = {
-  container: { height: '100%', backgroundColor: '#000', color: '#fff', overflow: 'hidden', position: 'relative' },
+  container: { height: '100%', backgroundColor: '#000', color: '#fff', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' },
   loadingContainer: { height: '100%', backgroundColor: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
   backgroundGlow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.4, filter: 'blur(100px)', transition: 'background 1.5s ease' },
-  mainContent: { height: '100%', zIndex: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
+  mainContent: { height: '100%', zIndex: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', boxSizing: 'border-box' },
   diskWrapper: { position: 'relative', cursor: 'pointer', marginBottom: '40px' },
   playOverlay: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, pointerEvents: 'none' },
   textContainer: { textAlign: 'center', width: '100%', maxWidth: '1000px', padding: '0 20px', overflow: 'hidden' },

@@ -19,3 +19,5 @@ backfill_random.js
 sannity
 logs/
 *.log
+scripts/
+__pycache__/

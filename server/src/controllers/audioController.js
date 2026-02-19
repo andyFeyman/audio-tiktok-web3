@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { Readable } from 'stream';
 import pkg from '@andresaya/edge-tts';
 const { EdgeTTS } = pkg;
 const tts = new EdgeTTS();
@@ -65,7 +66,8 @@ export const getFeed = async (req, res) => {
     // We need to adjust mapping.
     const plainAudios = audios.map((a) => ({
       ...a,
-      id: a.id, // Prisma returns string for @db.ObjectId
+      id: a.id,
+      url: `/api/audios/stream/${a.id}`
     }));
 
     // Old manual mapping removed since findMany returns clean objects
@@ -92,7 +94,10 @@ export const getAudio = async (req, res) => {
       return res.status(404).json({ error: 'Audio not found' });
     }
 
-    res.json(audio);
+    res.json({
+      ...audio,
+      url: `/api/audios/stream/${audio.id}`
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch audio' });
   }
@@ -218,5 +223,56 @@ export const generateTTS = async (req, res) => {
   } catch (err) {
     console.error('Edge TTS Error:', err);
     res.status(500).json({ error: 'AI Voice synthesis failed' });
+  }
+};
+export const streamAudio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const audio = await prisma.audio.findUnique({
+      where: { id }
+    });
+
+    if (!audio || !audio.url) {
+      return res.status(404).json({ error: 'Audio not found' });
+    }
+
+    // Forward the Range header from the client
+    const headers = {};
+    if (req.headers.range) {
+      headers.range = req.headers.range;
+    }
+
+    // Proxy the audio file
+    const response = await fetch(audio.url, { headers });
+
+    // Handle 206 Partial Content or 200 OK
+    if (response.status === 206) {
+      res.status(206);
+      res.set('Content-Range', response.headers.get('Content-Range'));
+      res.set('Accept-Ranges', 'bytes');
+    } else if (!response.ok) {
+      throw new Error(`Failed to fetch from source: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type') || 'audio/mpeg';
+    const contentLength = response.headers.get('content-length');
+
+    res.set({
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=3600',
+    });
+
+    if (contentLength) {
+      res.set('Content-Length', contentLength);
+    }
+
+    if (response.body) {
+      Readable.fromWeb(response.body).pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (err) {
+    console.error('Stream Audio Error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to stream audio' });
   }
 };

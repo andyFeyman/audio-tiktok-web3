@@ -7,7 +7,7 @@ const Footer = () => {
             <nav style={styles.footerNav}>
                 <Link to="/creator" style={styles.navLink}>Creator</Link>
                 <Link to="/" style={styles.navLink}>Flow</Link>
-                <Link to="/docs" style={styles.navLink}>DOCS</Link>
+                <Link to="/docs" style={styles.navLink}>Docs</Link>
                 <h1 style={{ display: 'none' }}>
                     AutoSuggestion - Audio Platform
                 </h1>

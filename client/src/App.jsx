@@ -124,7 +124,12 @@ function AppContent() {
       </header>
 
       <FavoritesProvider initialFavorites={user?.favorites}>
-        <main style={{ height: '100vh', paddingTop: '80px', boxSizing: 'border-box' }}>
+        <main style={{
+          height: '100dvh',
+          paddingTop: window.innerWidth < 768 ? '70px' : '80px',
+          boxSizing: 'border-box',
+          overflow: 'hidden'
+        }}>
           <Routes>
             {/* 首页 – Feed */}
             <Route path="/" element={<Feed key={lang} language={lang} />} />

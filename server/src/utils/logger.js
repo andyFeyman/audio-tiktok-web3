@@ -16,7 +16,7 @@ const transport = new winston.transports.DailyRotateFile({
     maxSize: '1m', // 1MB limit as requested
     maxFiles: '7d', // Keep for 7 days as requested
     format: winston.format.combine(
-        winston.format.timestamp(),
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.json()
     ),
 });
@@ -24,13 +24,20 @@ const transport = new winston.transports.DailyRotateFile({
 const logger = winston.createLogger({
     level: 'info',
     format: winston.format.combine(
-        winston.format.timestamp(),
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.errors({ stack: true }),
         winston.format.json()
     ),
     transports: [
         transport,
         new winston.transports.Console({
-            format: winston.format.simple(),
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.printf(({ timestamp, level, message, ...rest }) => {
+                    const details = Object.keys(rest).length ? JSON.stringify(rest) : '';
+                    return `[${timestamp}] ${level}: ${message} ${details}`;
+                })
+            ),
         }),
     ],
 });
